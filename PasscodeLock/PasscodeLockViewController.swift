@@ -7,7 +7,7 @@
 //
 
 import UIKit
-
+@objc
 public class PasscodeLockViewController: UIViewController, PasscodeLockTypeDelegate {
     
     public enum LockState {
@@ -36,6 +36,7 @@ public class PasscodeLockViewController: UIViewController, PasscodeLockTypeDeleg
     @IBOutlet public weak var placeholdersX: NSLayoutConstraint?
     
     public var successCallback: ((lock: PasscodeLockType) -> Void)?
+    public var completionCallback: (() -> Void)?
     public var dismissCompletionCallback: (()->Void)?
     public var animateOnDismiss: Bool
     public var notificationCenter: NSNotificationCenter?
@@ -45,10 +46,36 @@ public class PasscodeLockViewController: UIViewController, PasscodeLockTypeDeleg
     internal var isPlaceholdersAnimationCompleted = true
     
     private var shouldTryToAuthenticateWithBiometrics = true
+  
+    let stateEnterPasscode = "EnterPassCode"
+    let stateChangePasscode = "ChangePasscode"
+    let stateRemovePasscode = "RemovePasscode"
+    let stateSetPasscode = "SetPasscode"
+  
+  public convenience init(stateString: String){
+    var state : LockState
+    switch stateString {
+    case "EnterPassCode":
+      state = .EnterPasscode
     
+    case "ChangePasscode":
+      state = .ChangePasscode
+    
+    case "RemovePasscode":
+      state = .RemovePasscode
+      
+    case "SetPasscode":
+      state = .SetPasscode
+
+    default:
+      state = .EnterPasscode
+    }
+    
+    self.init(state: state, configuration: PasscodeLockConfiguration(), animateOnDismiss: true)
+  }
+  
     // MARK: - Initializers
-    
-    public init(state: PasscodeLockStateType, configuration: PasscodeLockConfigurationType, animateOnDismiss: Bool = true) {
+    public required init(state: PasscodeLockStateType, configuration: PasscodeLockConfigurationType, animateOnDismiss: Bool = true) {
         
         self.animateOnDismiss = animateOnDismiss
         
@@ -110,8 +137,8 @@ public class PasscodeLockViewController: UIViewController, PasscodeLockTypeDeleg
     
     private func setupEvents() {
         
-        notificationCenter?.addObserver(self, selector: "appWillEnterForegroundHandler:", name: UIApplicationWillEnterForegroundNotification, object: nil)
-        notificationCenter?.addObserver(self, selector: "appDidEnterBackgroundHandler:", name: UIApplicationDidEnterBackgroundNotification, object: nil)
+        notificationCenter?.addObserver(self, selector: #selector(PasscodeLockViewController.appWillEnterForegroundHandler(_:)), name: UIApplicationWillEnterForegroundNotification, object: nil)
+        notificationCenter?.addObserver(self, selector: #selector(PasscodeLockViewController.appDidEnterBackgroundHandler(_:)), name: UIApplicationDidEnterBackgroundNotification, object: nil)
     }
     
     private func clearEvents() {
@@ -240,6 +267,7 @@ public class PasscodeLockViewController: UIViewController, PasscodeLockTypeDeleg
         animatePlaceholders(placeholders, toState: .Inactive)
         dismissPasscodeLock(lock, completionHandler: { [weak self] _ in
             self?.successCallback?(lock: lock)
+            self?.completionCallback?()
         })
     }
     
